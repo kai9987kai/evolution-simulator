@@ -17,6 +17,9 @@ Original prompt: innovate imrpove refine and advance look at new and best resear
 - Added a deterministic seeded PRNG, `window.advanceTime(ms)`, and `window.render_game_to_text()`.
 - Added research and model documentation to `README.md`.
 - Reworked perception to periodic cached sensing so population growth does not create a quadratic scan on every physics tick.
+- Replaced wraparound movement with bounded reflective habitat edges so the hot and cool ends of the thermal gradient are no longer artificially adjacent.
+- Added heritable behavioral plasticity, thermoregulatory habitat choice, and an explicit energetic cost for maintaining plasticity.
+- Added mean thermal lag, mean plasticity, a drought resistance/recovery assay, genuine extinction, and an experimental warm-adapted gene-flow pulse.
 
 ## Verification
 
@@ -25,8 +28,9 @@ Original prompt: innovate imrpove refine and advance look at new and best resear
 - A long run reached day 70.7 with 158 living organisms, 490 births, 396 deaths, nine generations, and three functional ecotypes.
 - Verified pause/resume, reset, drought, environment selection, speed selection, organism inspection, desktop layout, and the 390px mobile breakpoint.
 - Browser console reported no errors.
+- The final deterministic assay introduced exactly ten migrants, classified a 100%-retention drought outcome as resistance rather than recovery, selected organism ID 1, and reset to the original 64-organism state.
+- Fresh desktop and 390px mobile screenshots show the expanded dashboard and controls without clipping or overlap.
 
 ## TODO
 
-- In progress: replace the non-periodic thermal gradient's wraparound topology with bounded habitat edges.
-- In progress: add evolvable behavioral plasticity, climate-lag metrics, disturbance recovery tracking, and a gene-flow experiment.
+- No known blocking issues.

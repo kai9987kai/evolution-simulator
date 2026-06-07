@@ -791,6 +791,8 @@
                     parents,
                     lineage: lineage ?? state.nextLineage++,
                     cooldown: rand(0, 4),
+                    senseCooldown: rand(0, 0.15),
+                    sensed: null,
                     alive: true,
                     kills: 0,
                     eaten: 0
@@ -860,14 +862,14 @@
                 return clamp(gradient + season + warming + droughtHeat, 0, 1);
             }
 
-            function nearestTargets(agent) {
+            function senseTargets(agent) {
                 let food = null;
                 let foodDistance = agent.genome.vision;
                 for (const resource of state.resources) {
                     if (resource.amount < 1.5) continue;
                     const delta = wrappedDistance(agent, resource);
                     if (delta.distance < foodDistance) {
-                        food = { target: resource, ...delta };
+                        food = resource;
                         foodDistance = delta.distance;
                     }
                 }
@@ -876,24 +878,67 @@
                 let mateDistance = agent.genome.vision * 0.72;
                 let threat = null;
                 let threatDistance = agent.genome.vision * 0.55;
+                let prey = null;
+                let preyDistance = 9 + agent.genome.size * 4;
+                let socialX = 0;
+                let socialY = 0;
+                let neighbors = 0;
                 for (const other of state.agents) {
                     if (!other.alive || other.id === agent.id) continue;
                     const delta = wrappedDistance(agent, other);
                     if (agent.energy > 94 && other.energy > 94 && agent.cooldown <= 0 && other.cooldown <= 0 && delta.distance < mateDistance) {
-                        mate = { target: other, ...delta };
+                        mate = other;
                         mateDistance = delta.distance;
                     }
                     const danger = other.genome.aggression * other.genome.size - agent.genome.aggression * agent.genome.size;
                     if (danger > 0.18 && delta.distance < threatDistance) {
-                        threat = { target: other, ...delta };
+                        threat = other;
                         threatDistance = delta.distance;
                     }
+                    if (
+                        agent.genome.aggression > 0.58 &&
+                        agent.energy < 78 &&
+                        delta.distance < preyDistance &&
+                        agent.genome.size * (0.7 + agent.genome.aggression) > other.genome.size
+                    ) {
+                        prey = other;
+                        preyDistance = delta.distance;
+                    }
+                    if (Math.abs(agent.genome.sociality) > 0.1 && delta.distance < agent.genome.vision * 0.38 && delta.distance > 1) {
+                        socialX += delta.dx / delta.distance;
+                        socialY += delta.dy / delta.distance;
+                        neighbors++;
+                    }
                 }
-                return { food, mate, threat };
+                return {
+                    food,
+                    mate,
+                    threat,
+                    prey,
+                    socialX: neighbors ? socialX / neighbors : 0,
+                    socialY: neighbors ? socialY / neighbors : 0
+                };
+            }
+
+            function resolveTarget(agent, target, maxDistance) {
+                if (!target || target.alive === false || target.amount < 0.5) return null;
+                const delta = wrappedDistance(agent, target);
+                return delta.distance <= maxDistance ? { target, ...delta } : null;
             }
 
             function steerAgent(agent, dt) {
-                const targets = nearestTargets(agent);
+                agent.senseCooldown -= dt;
+                if (agent.senseCooldown <= 0 || !agent.sensed) {
+                    agent.sensed = senseTargets(agent);
+                    agent.senseCooldown = rand(0.09, 0.14);
+                }
+                const sensed = agent.sensed;
+                const targets = {
+                    food: resolveTarget(agent, sensed.food, agent.genome.vision),
+                    mate: resolveTarget(agent, sensed.mate, agent.genome.vision * 0.72),
+                    threat: resolveTarget(agent, sensed.threat, agent.genome.vision * 0.55),
+                    prey: resolveTarget(agent, sensed.prey, 9 + agent.genome.size * 4)
+                };
                 let desiredX = Math.cos(agent.heading);
                 let desiredY = Math.sin(agent.heading);
 
@@ -908,24 +953,10 @@
                     desiredY = targets.food.dy / Math.max(targets.food.distance, 1);
                 }
 
-                let socialX = 0;
-                let socialY = 0;
-                let neighbors = 0;
                 if (Math.abs(agent.genome.sociality) > 0.1) {
-                    for (const other of state.agents) {
-                        if (!other.alive || other.id === agent.id) continue;
-                        const delta = wrappedDistance(agent, other);
-                        if (delta.distance < agent.genome.vision * 0.38 && delta.distance > 1) {
-                            socialX += delta.dx / delta.distance;
-                            socialY += delta.dy / delta.distance;
-                            neighbors++;
-                        }
-                    }
-                }
-                if (neighbors) {
                     const socialWeight = agent.genome.sociality * 0.34;
-                    desiredX += socialX / neighbors * socialWeight;
-                    desiredY += socialY / neighbors * socialWeight;
+                    desiredX += sensed.socialX * socialWeight;
+                    desiredY += sensed.socialY * socialWeight;
                 }
 
                 agent.heading += gaussian() * agent.genome.turning * dt * 1.7;
@@ -959,17 +990,8 @@
                     reproduce(agent, targets.mate.target);
                 }
 
-                if (agent.genome.aggression > 0.58 && agent.energy < 78) {
-                    let victim = null;
-                    let victimDistance = 9 + agent.genome.size * 4;
-                    for (const other of state.agents) {
-                        if (!other.alive || other.id === agent.id) continue;
-                        const delta = wrappedDistance(agent, other);
-                        if (delta.distance < victimDistance && agent.genome.size * (0.7 + agent.genome.aggression) > other.genome.size) {
-                            victim = other;
-                            victimDistance = delta.distance;
-                        }
-                    }
+                if (targets.prey && agent.genome.aggression > 0.58 && agent.energy < 78) {
+                    const victim = targets.prey.target;
                     if (victim) {
                         const damage = dt * 11 * agent.genome.aggression * agent.genome.size;
                         victim.energy -= damage;
@@ -1081,7 +1103,7 @@
                 for (const agent of state.agents) {
                     let represented = false;
                     for (const representative of representatives) {
-                        if (genomeDistance(agent.genome, representative) < 0.19) {
+                        if (genomeDistance(agent.genome, representative) < 0.31) {
                             represented = true;
                             break;
                         }
@@ -1320,7 +1342,7 @@
                         <i class="agent-chip" style="background:${agentColor(agent)}"></i>
                         <div>
                             <strong>Generation ${agent.generation} · Lineage ${agent.lineage}</strong>
-                            <small>${agent.energy.toFixed(0)} energy · ${agent.age.toFixed(1)} days · ${Math.round(match * 100)}% thermal match</small>
+                            <small>${agent.energy.toFixed(0)} energy · ${(agent.age / 5).toFixed(1)} days · ${Math.round(match * 100)}% thermal match</small>
                         </div>
                     </div>
                     <div class="trait-list">${traitRows}</div>`;

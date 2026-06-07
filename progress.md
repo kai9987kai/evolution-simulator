@@ -28,4 +28,5 @@ Original prompt: innovate imrpove refine and advance look at new and best resear
 
 ## TODO
 
-- No known blocking issues.
+- In progress: replace the non-periodic thermal gradient's wraparound topology with bounded habitat edges.
+- In progress: add evolvable behavioral plasticity, climate-lag metrics, disturbance recovery tracking, and a gene-flow experiment.

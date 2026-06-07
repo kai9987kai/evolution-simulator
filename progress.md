@@ -15,6 +15,7 @@ Original prompt: innovate imrpove refine and advance look at new and best resear
 
 ## TODO
 
-- Implement the upgraded web simulator.
+- Implemented the upgraded web simulator in `Webbots-alpha.html`.
+- Added a deterministic seeded PRNG, `window.advanceTime(ms)`, and `window.render_game_to_text()`.
+- Added research and model documentation to `README.md`.
 - Add deterministic browser hooks and test the major controls.
-- Update README with model assumptions, controls, and research links.
